@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.WebClient
+import reactor.core.publisher.Flux
 import java.sql.ResultSet
 
 @SpringBootApplication
@@ -35,20 +36,24 @@ class LanguagesController(
 ) {
 
     @GetMapping
-    fun getLanguages(): List<Language> {
+    fun getLanguages(): Flux<Language> {
         val languages = jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
             Language(name = rs.getString("name"))
         };
 
-        return languages.map { language ->
-            val languageYear = webClient
-                .get()
-                .uri(urls[language.name].toString())
-                .retrieve()
-                .bodyToMono(LanguageYear::class.java)
-                .block()
-            language.copy(year = languageYear?.year)
-        }
+        return Flux.fromIterable(languages)
+            .flatMap { language ->
+                // fetch published year for each language
+                val languageYearResponse = webClient
+                    .get()
+                    .uri(urls[language.name].toString())
+                    .retrieve()
+                    .bodyToMono(LanguageYear::class.java)
+
+                // update language model with a fetched year
+                languageYearResponse
+                    .map { languageYear -> language.copy(year = languageYear.year) }
+            }
     }
 }
 
