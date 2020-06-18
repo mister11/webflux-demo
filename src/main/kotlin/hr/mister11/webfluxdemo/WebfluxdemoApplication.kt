@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.RestTemplate
+import reactor.core.publisher.Flux
 import java.sql.ResultSet
 
 @SpringBootApplication
@@ -34,15 +35,17 @@ class LanguagesController(
 ) {
 
     @GetMapping
-    fun getLanguages(): List<Language> {
+    fun getLanguages(): Flux<Language> {
         val languages = jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
             Language(name = rs.getString("name"))
         };
 
-        return languages.map { language ->
-            val languageYear = restTemplate.getForEntity(urls[language.name].toString(), LanguageYear::class.java)
-            language.copy(year = languageYear.body?.year)
-        }
+        return Flux.fromIterable(
+            languages.map { language ->
+                val languageYear = restTemplate.getForEntity(urls[language.name].toString(), LanguageYear::class.java)
+                language.copy(year = languageYear.body?.year)
+            }
+        )
     }
 }
 
