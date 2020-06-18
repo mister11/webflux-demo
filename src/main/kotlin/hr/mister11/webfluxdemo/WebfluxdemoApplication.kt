@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.RestTemplate
-import reactor.core.publisher.Flux
+import org.springframework.web.reactive.function.client.WebClient
 import java.sql.ResultSet
 
 @SpringBootApplication
@@ -31,21 +31,24 @@ val urls = mapOf(
 @RestController
 class LanguagesController(
     private val jdbcTemplate: JdbcTemplate,
-    private val restTemplate: RestTemplate
+    private val webClient: WebClient
 ) {
 
     @GetMapping
-    fun getLanguages(): Flux<Language> {
+    fun getLanguages(): List<Language> {
         val languages = jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
             Language(name = rs.getString("name"))
         };
 
-        return Flux.fromIterable(
-            languages.map { language ->
-                val languageYear = restTemplate.getForEntity(urls[language.name].toString(), LanguageYear::class.java)
-                language.copy(year = languageYear.body?.year)
-            }
-        )
+        return languages.map { language ->
+            val languageYear = webClient
+                .get()
+                .uri(urls[language.name].toString())
+                .retrieve()
+                .bodyToMono(LanguageYear::class.java)
+                .block()
+            language.copy(year = languageYear?.year)
+        }
     }
 }
 
@@ -60,10 +63,10 @@ data class LanguageYear(
 
 
 @Configuration(proxyBeanMethods = false)
-class RestTemplateConfiguration {
+class WebClientConfiguration {
 
     @Bean
-    fun restTemplate(restTemplateBuilder: RestTemplateBuilder): RestTemplate {
-        return restTemplateBuilder.build()
+    fun webClient(): WebClient {
+        return WebClient.create()
     }
 }
