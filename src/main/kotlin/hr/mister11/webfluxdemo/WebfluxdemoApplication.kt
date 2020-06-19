@@ -2,17 +2,14 @@ package hr.mister11.webfluxdemo
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.data.r2dbc.core.DatabaseClient
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Flux
-import java.sql.ResultSet
 
 @SpringBootApplication
 class WebfluxdemoApplication
@@ -31,17 +28,13 @@ val urls = mapOf(
 @RequestMapping("/languages")
 @RestController
 class LanguagesController(
-    private val jdbcTemplate: JdbcTemplate,
-    private val webClient: WebClient
+    private val webClient: WebClient,
+    private val databaseClient: DatabaseClient
 ) {
 
     @GetMapping
     fun getLanguages(): Flux<Language> {
-        val languages = jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
-            Language(name = rs.getString("name"))
-        };
-
-        return Flux.fromIterable(languages)
+        return databaseClient.select().from("languages").`as`(Language::class.java).fetch().all()
             .flatMap { language ->
                 // fetch published year for each language
                 val languageYearResponse = webClient
@@ -56,6 +49,7 @@ class LanguagesController(
             }
     }
 }
+
 
 data class Language(
     val name: String,
