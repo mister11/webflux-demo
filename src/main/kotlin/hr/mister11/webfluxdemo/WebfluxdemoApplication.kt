@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.sql.ResultSet
 
 @SpringBootApplication
@@ -37,11 +39,14 @@ class LanguagesController(
 
     @GetMapping
     fun getLanguages(): Flux<Language> {
-        val languages = jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
-            Language(name = rs.getString("name"))
-        };
+        val languages = Mono.fromSupplier {
+            jdbcTemplate.query("select * from languages") { rs: ResultSet, _: Int ->
+                Language(name = rs.getString("name"))
+            };
+        }
 
-        return Flux.fromIterable(languages)
+        return languages
+            .flatMapIterable { it }
             .flatMap { language ->
                 // fetch published year for each language
                 val languageYearResponse = webClient
@@ -54,6 +59,7 @@ class LanguagesController(
                 languageYearResponse
                     .map { languageYear -> language.copy(year = languageYear.year) }
             }
+            .subscribeOn(Schedulers.boundedElastic())
     }
 }
 
