@@ -30,6 +30,10 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0")
 
+    testImplementation("org.testcontainers:testcontainers:1.15.2")
+    testImplementation("org.testcontainers:junit-jupiter:1.15.2")
+    testImplementation("org.testcontainers:postgresql:1.15.2")
+    testImplementation("org.testcontainers:r2dbc:1.15.2")
 }
 
 tasks.withType<Test> {
