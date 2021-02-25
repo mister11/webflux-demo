@@ -1,11 +1,13 @@
 # Spring WebFlux demo
 
-Accompanying project for Spring WebFlux introduction [blog post](https://mister11.github.io/posts/spring_webflux/).
+Accompanying project for [Spring WebFlux Introduction](https://mister11.github.io/posts/spring_webflux/) and [Testing Spring WebFlux Applications
+](https://mister11.github.io/posts/testing_spring_webflux_application/).
 
 Project shows how to migrate Spring MVC app to a Spring WebFlux one and code for each step is in corresponding branch
 linked in the blog post.
 
-Master branch contains basic Spring MVC application.
+Master branch contains basic Spring MVC application which is a starting point of the first
+blog post.
 
 ## Database
 
