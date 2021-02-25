@@ -1,5 +1,6 @@
 package hr.mister11.webfluxdemo.integration
 
+import com.github.dockerjava.zerodep.shaded.org.apache.commons.codec.language.bm.Lang
 import hr.mister11.webfluxdemo.client.LanguageYearClient
 import hr.mister11.webfluxdemo.repository.LanguageRepository
 import hr.mister11.webfluxdemo.service.Language
@@ -12,12 +13,17 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.data.r2dbc.core.DatabaseClient
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate
+import org.springframework.data.r2dbc.core.delete
 import org.springframework.data.r2dbc.core.from
+import org.springframework.data.r2dbc.core.insert
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.expectBodyList
 import org.testcontainers.junit.jupiter.Testcontainers
 import reactor.core.publisher.Mono
 
+@ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class LanguagesIntegrationTest {
@@ -29,36 +35,37 @@ class LanguagesIntegrationTest {
     lateinit var languageYearClient: LanguageYearClient
 
     @Autowired
-    lateinit var databaseClient: DatabaseClient
+    lateinit var r2dbcEntityTemplate: R2dbcEntityTemplate
 
     @BeforeEach
     fun setUp() {
         // create table on the first run
-        databaseClient.execute("""
+        r2dbcEntityTemplate.databaseClient.sql("""
             CREATE TABLE IF NOT EXISTS languages (
+                id bigserial PRIMARY KEY,
                 name text NOT NULL,
                 year integer
             );
         """.trimIndent()
         ).then().block()
         // delete all data from previous run
-        databaseClient.delete().from("languages").then().block()
+        r2dbcEntityTemplate.delete<Language>().all().block()
         // insert new mock data
-        databaseClient.insert()
-            .into("languages")
-            .value("name", "test 1")
-            .then().block()
-        databaseClient.insert()
-            .into("languages")
-            .value("name", "test 2")
-            .then().block()
+        r2dbcEntityTemplate
+            .insert(Language(name = "test 1"))
+            .block()
+        r2dbcEntityTemplate
+            .insert(Language(name = "test 2"))
+            .block()
     }
 
     @Test
     @DisplayName("Getting all languages should return 200 with the list of all languages with correct years")
     fun getAllLanguagesTest() {
-        `when`(languageYearClient.fetchLanguageYear(Language(name = "test 1"))).thenReturn(Mono.just(LanguageYear(2010)))
-        `when`(languageYearClient.fetchLanguageYear(Language(name = "test 2"))).thenReturn(Mono.just(LanguageYear(2020)))
+        `when`(languageYearClient.fetchLanguageYear(Language(id = 1, name = "test 1")))
+            .thenReturn(Mono.just(LanguageYear(2010)))
+        `when`(languageYearClient.fetchLanguageYear(Language(id = 2, name = "test 2")))
+            .thenReturn(Mono.just(LanguageYear(2020)))
         webTestClient
             .get()
             .uri("/languages")
@@ -66,8 +73,8 @@ class LanguagesIntegrationTest {
             .expectStatus().isOk
             .expectBodyList<Language>()
             .contains(*listOf(
-                Language(name = "test 1", year = 2010),
-                Language(name = "test 2", year = 2020)
+                Language(id = 1, name = "test 1", year = 2010),
+                Language(id = 2, name = "test 2", year = 2020)
             ).toTypedArray())
     }
 }

@@ -2,6 +2,9 @@ package hr.mister11.webfluxdemo.service
 
 import hr.mister11.webfluxdemo.client.LanguageYearClient
 import hr.mister11.webfluxdemo.repository.LanguageRepository
+import org.springframework.data.annotation.Id
+import org.springframework.data.relational.core.mapping.Column
+import org.springframework.data.relational.core.mapping.Table
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 
@@ -21,9 +24,11 @@ class LanguagesService(
 
 }
 
+@Table("languages")
 data class Language(
-    val name: String,
-    val year: Int? = null
+    @Id val id: Long = 0,
+    @Column("name") val name: String,
+    @Column("year") val year: Int? = null
 )
 
 data class LanguageYear(
